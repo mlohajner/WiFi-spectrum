@@ -1,6 +1,7 @@
 # WiFi Spectrum – Config
 
 This directory contains configuration files used by the WiFi Spectrum application.
+
 These files are auto-generated and stored in ~/.config/wifi-spectrum (ofcourse)
 
 ---
@@ -9,6 +10,7 @@ These files are auto-generated and stored in ~/.config/wifi-spectrum (ofcourse)
 
 ### `nmcli_extra.conf`
 Defines extra WiFi connection parameters used with `nmcli` (NetworkManager CLI).
+
 These values are used to generate an `nmcli` connection command for joining WiFi networks.
 
 Example:
@@ -23,6 +25,7 @@ In this example: disable WiFi powersaving and disable IPv6
 
 ### `theme.conf`
 Defines the UI theme mode.
+
 (single word/flag)
 
 Supported values:
