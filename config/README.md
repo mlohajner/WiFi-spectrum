@@ -6,16 +6,13 @@ This directory contains configuration files used by the WiFi Spectrum applicatio
 
 ## 📁 Files
 
-### `wifi.conf`
+### `nmcli_extra.conf`
 Defines WiFi connection parameters used with `nmcli` (NetworkManager CLI).
 
 Example:
-```ini
-ssid="MyNetwork"
-password="mypassword"
-interface="wlan0"
-autoconnect=true
-hidden=false
+```
+802-11-wireless.powersave 2
+ipv6.method disabled
 ```
 
 These values are used to generate an `nmcli` connection command for joining WiFi networks.
@@ -31,29 +28,12 @@ Supported values:
 - `dark` – dark mode
 
 Example:
-```ini
-theme=dark
+```
+dark
 ```
 
 ---
 
 ### `theme.css`
 Full custom CSS for the application UI.
-
 Used at runtime to style the interface without rebuilding the app.
-
-Example:
-```css
-body {
-  background: #121212;
-  color: #ffffff;
-}
-```
-
----
-
-## ⚙️ Notes
-- WiFi connections are managed via `nmcli`
-- Theme changes are applied at runtime
-- CSS overrides the full UI style
-
