@@ -1,6 +1,7 @@
 # WiFi Spectrum – Config
 
 This directory contains configuration files used by the WiFi Spectrum application.
+these are auto-generated and stored in ~/.config/wifi-spectrum (ofcourse)
 
 ---
 
