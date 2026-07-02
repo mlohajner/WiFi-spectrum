@@ -14,7 +14,7 @@ A native Linux WiFi network scanner and spectrum visualizer, built with Python, 
 - **One-click connect** via NetworkManager (`nmcli`)
 - **rfkill awareness** — detects when WiFi is hardware/software blocked and surfaces it in the UI
 - **Automatic theme detection** — follows your system theme (dark/light), or set a manual preference
-- **Fully customizable appearance** — the entire UI is plain HTML/CSS/JS under the hood, so every visual element can be restyled
+- **Fully customizable appearance** — the entire UI can be restyled
 
 ## How it works
 
@@ -36,12 +36,7 @@ Because WebKitGTK is Wayland-native (the same engine behind GNOME Web), the app 
 
 ## Installation
 
-```bash
-git clone https://github.com/<your-username>/wifi-spectrum.git
-cd wifi-spectrum
-pip install -r requirements.txt
-python scan.py
-```
+either use and execute the python source OR execute included binary
 
 A prebuilt standalone binary (compiled with [Nuitka](https://nuitka.net/)) is also available under [Releases](../../releases) for systems where you'd rather not set up a Python environment. It depends on `libpython3.14`, `libm`, and `libc` — no other Python packages required at runtime.
 
@@ -62,7 +57,3 @@ Custom `nmcli` connection parameters can be set from the settings dialog and are
 ## License
 
 [Choose a license — GPLv3 is a common fit for Fedora/GNOME-adjacent tooling, MIT/Apache-2.0 if you'd prefer something more permissive.]
-
-## Contributing
-
-Issues and pull requests welcome. If you're packaging this for a distro (RPM/Flatpak/AUR), an example `.spec` or manifest would be a great contribution.
