@@ -20,8 +20,8 @@ A native Linux WiFi network scanner and spectrum visualizer, built with Python, 
 
 WiFi Spectrum uses a lightweight architecture, similar in spirit to Electron but built on Python and WebKitGTK instead of Node.js and Chromium/V8:
 
-- **GTK** handles the native window chrome and system dialogs (settings, connection prompts) — the minimal native surface needed
-- **WebKitGTK** renders the actual UI — spectrum graph, network table, tooltips, theming — using standard HTML/CSS/JS
+- **GTK** handles the native window chrome and system dialogs: settings, connection prompt -the minimal native surface needed
+- **WebKitGTK** renders the actual UI: spectrum graph, network table, tooltips, theming -using standard HTML/CSS/JS
 - **Python** drives the backend: scanning via `nmcli`, parsing results, checking `rfkill` status, and feeding data into the view
 
 Because WebKitGTK is Wayland-native (the same engine behind GNOME Web), the app renders identically and natively on both Wayland and X11, with no compatibility layer needed.
@@ -36,9 +36,9 @@ Because WebKitGTK is Wayland-native (the same engine behind GNOME Web), the app 
 
 ## Installation
 
-either use and execute the python source OR execute included binary
+Execute the python source OR included binary!
 
-A prebuilt standalone binary (compiled with [Nuitka](https://nuitka.net/)) is also available under [Releases](../../releases) for systems where you'd rather not set up a Python environment. It depends on `libpython3.14`, `libm`, and `libc` — no other Python packages required at runtime.
+A prebuilt standalone binary (compiled with [Nuitka](https://nuitka.net/)) is available under [Releases](../../releases) for systems where you'd rather not set up a Python environment. It depends on `libpython3.14`, `libm`, and `libc` — no other Python packages required at runtime.
 
 ## Configuration
 
