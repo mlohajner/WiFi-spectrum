@@ -42,8 +42,8 @@ A prebuilt standalone binary (compiled with [Nuitka](https://nuitka.net/)) is av
 
 ## Configuration
 
-Custom `nmcli` connection parameters and theme preference can be set from the settings dialog.
-See [config details](config)
+Custom `nmcli` connection parameters and theme preference can be set from the settings dialog.  
+[More config details...](config)
 
 ## Screenshots
 
