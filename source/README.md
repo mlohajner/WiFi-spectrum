@@ -5,7 +5,7 @@ Single-file fusion of Python, GTK, HTML, CSS, and JavaScript, compiled to a stan
 
 ## The stack
 
-WiFi Spectrum doesn't run on Electron, and it isn't trying to be a lightweight substitute for one.  
+WiFi Spectrum doesn't run on Electron, and it isn't trying to be a substitute for one.  
 It's a different combination of the same idea:  
 native chrome plus HTML rendered UI, built Python/GTK/WebKit stack instead of Chromium/Node/V8!
 Electron ships its own browser runtime with every app, whilw WiFi Spectrum uses the WebKitGTK engine already present on the system.
