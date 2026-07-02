@@ -38,7 +38,7 @@ Because WebKitGTK is Wayland-native (the same engine behind GNOME Web), the app 
 
 Execute the python source OR included binary!
 
-A prebuilt standalone binary (compiled with [Nuitka](https://nuitka.net/)) is available under [Releases](../../releases) for systems where you'd rather not set up a Python environment. It depends on `libpython3.14`, `libm`, and `libc` — no other Python packages required at runtime.
+A prebuilt standalone binary (compiled with [Nuitka](https://nuitka.net/)) is available under [binary](binary) for systems where you'd rather not set up a Python environment. It depends on `libpython3.14`, `libm`, and `libc` — no other Python packages required at runtime.
 
 ## Configuration
 
