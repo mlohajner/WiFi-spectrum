@@ -6,31 +6,16 @@ Single-file fusion of Python, GTK, HTML, CSS, and JavaScript, compiled to a stan
 ## The stack
 
 WiFi Spectrum doesn't run on Electron, and it isn't trying to be a lightweight substitute for one.  
-It's a different combination of the same idea: native chrome plus a web-rendered UI, built entirely on the GTK/WebKit stack instead of Chromium/Node/V8:
-
-| Layer | Electron | WiFi Spectrum |
-|---|---|---|
-| Native shell | Node.js + Chromium (Blink/V8) | GTK 4 |
-| Render engine | Chromium (bundled) | WebKitGTK (system-provided) |
-| App logic | JavaScript | Python |
-| UI | HTML/CSS/JS | HTML/CSS/JS |
-| Backend calls | Node bindings / IPC | Direct Python calls (`nmcli`, `rfkill`) |
-
-The two approaches solve the same problem:  
-Give a web UI a native window and access to the system but land in very different places.
-Electron ships its own browser runtime with every app.  
-WiFi Spectrum uses the WebKitGTK engine already present on the system, and keeps the GTK layer to the bare minimum:
-- window chrome
-- a couple of dialogs (settings, connection prompts).
-
-Everything else — the spectrum graph, the network table, sorting, tooltips, theming — is rendered inside WebKitGTK.
+It's a different combination of the same idea:  
+native chrome plus HTML rendered UI, built Python/GTK/WebKit stack instead of Chromium/Node/V8!
+Electron ships its own browser runtime with every app, whilw WiFi Spectrum uses the WebKitGTK engine already present on the system.
 
 The result is a genuine fusion rather than a JS-to-Python port of Electron's model:  
 - Python owns scanning, parsing, and state;  
 - GTK owns the OS-level window and native dialogs;  
-- WebKitGTK owns rendering and interaction.
+- WebKitGTK owns UI rendering and interaction.
 
-No IPC bridge, no bundled browser, no Node runtime — the "web app" and the "native app" share one process and one address space.
+No IPC bridge, no bundled browser, no Node runtime the "web app" and the "native app" share one process and one address space.
 
 ## Why WebKitGTK
 
@@ -51,7 +36,7 @@ scan.py   — scanning logic (nmcli/rfkill), GTK window + WebKitGTK view setup,
             embedded HTML/CSS/JS template, theme detection
 ```
 
-The HTML/CSS/JS is embedded as template strings inside `scan.py` and populated with live scan data (`NETWORKS` array, per-BSSID color assignments, etc.) at render time — there's no separate build step or bundler involved.
+The HTML/CSS/JS is embedded as template string inside `scan.py` and populated with live scan data (`NETWORKS` array, per-BSSID color assignments, etc.) at render time — there's no separate build step or bundler involved.
 
 ## Runtime dependencies
 
