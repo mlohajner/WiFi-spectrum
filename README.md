@@ -50,7 +50,3 @@ Custom `nmcli` connection parameters and theme preference can be set from the se
 | Dark mode | Light mode |
 |---|---|
 | ![dark](screenshots/dark-mode.png) | ![light](screenshots/light-mode.png) |
-
-## License
-
-[Choose a license — GPLv3 is a common fit for Fedora/GNOME-adjacent tooling, MIT/Apache-2.0 if you'd prefer something more permissive.]
