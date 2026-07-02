@@ -42,11 +42,8 @@ A prebuilt standalone binary (compiled with [Nuitka](https://nuitka.net/)) is av
 
 ## Configuration
 
-Custom `nmcli` connection parameters can be set from the settings dialog and are stored at:
-
-```
-~/.config/wifi-spectrum/nmcli_extra.conf
-```
+Custom `nmcli` connection parameters and theme preference can be set from the settings dialog.
+See [config details](config)
 
 ## Screenshots
 
