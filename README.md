@@ -49,4 +49,4 @@ Custom `nmcli` connection parameters and theme preference can be set from the se
 
 | Dark mode | Light mode |
 |---|---|
-| ![dark](screenshots/screenshot1.png) | ![light](screenshots/screenshot2.png) |
+| ![dark](screenshots/screenshot2.png) | ![light](screenshots/screenshot1.png) |
