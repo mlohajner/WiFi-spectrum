@@ -14,7 +14,7 @@ A native Linux WiFi network scanner and spectrum visualizer, built with Python, 
 - **One-click connect** via NetworkManager (`nmcli`)
 - **rfkill awareness** — detects when WiFi is hardware/software blocked and surfaces it in the UI
 - **Automatic theme detection** — follows your system theme (dark/light), or set a manual preference
-- **Fully customizable appearance** — the entire UI can be restyled
+- **Fully customizable appearance** — the entire UI can be restyled via theme.css
 
 ## How it works
 
