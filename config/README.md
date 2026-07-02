@@ -4,7 +4,7 @@ This directory contains configuration files used by the WiFi Spectrum applicatio
 
 ---
 
-## 📁 Files
+# 📁 Files
 
 ### `nmcli_extra.conf`
 Defines WiFi connection parameters used with `nmcli` (NetworkManager CLI).
@@ -26,11 +26,6 @@ Supported values:
 - `auto` – follow system theme
 - `light` – light mode
 - `dark` – dark mode
-
-Example:
-```
-dark
-```
 
 ---
 
