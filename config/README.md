@@ -1,4 +1,4 @@
-# WiFi Spectrum – Config
+# .config
 
 These are configuration files used by the WiFi Spectrum application.  
 Files are auto-generated and stored in ~/.config/wifi-spectrum (ofcourse)
