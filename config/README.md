@@ -8,7 +8,8 @@ these are auto-generated and stored in ~/.config/wifi-spectrum (ofcourse)
 # 📁 Files
 
 ### `nmcli_extra.conf`
-Defines WiFi connection parameters used with `nmcli` (NetworkManager CLI).
+Defines extra WiFi connection parameters used with `nmcli` (NetworkManager CLI).
+These values are used to generate an `nmcli` connection command for joining WiFi networks.
 
 Example:
 ```
@@ -16,12 +17,13 @@ Example:
 ipv6.method disabled
 ```
 
-These values are used to generate an `nmcli` connection command for joining WiFi networks.
+In this example: disable WiFi powersaving and disable IPv6
 
 ---
 
 ### `theme.conf`
 Defines the UI theme mode.
+(single word/flag)
 
 Supported values:
 - `auto` – follow system theme
