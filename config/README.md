@@ -26,9 +26,9 @@ Defines the UI theme mode.
 (single word/flag)
 
 Supported values:
-- `auto` – follow system theme
-- `light` – light mode
-- `dark` – dark mode
+- `auto` - follow system theme
+- `light` - light mode
+- `dark` - dark mode
 
 ---
 
