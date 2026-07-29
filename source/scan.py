@@ -708,26 +708,20 @@ def contrasting_text_color(hex_color: str) -> str:
 	return '#000' if luminance > 0.55 else '#fff'
 
 
-def run_scan(interface: str, passes: int = 1) -> str:
-	scans = []
-	for i in range(passes):
-		print(f'[*] Scan pass {i+1}/{passes}')
-		try:
+def run_scan(interface: str) -> str:
+	try:
+		result = subprocess.run(
+			['iw', 'dev', interface, 'scan'],
+			capture_output=True, text=True, timeout=30
+		)
+		if result.returncode != 0:
 			result = subprocess.run(
-				['iw', 'dev', interface, 'scan'],
+				['sudo', 'iw', 'dev', interface, 'scan'],
 				capture_output=True, text=True, timeout=30
 			)
-			if result.returncode != 0:
-				result = subprocess.run(
-					['sudo', 'iw', 'dev', interface, 'scan'],
-					capture_output=True, text=True, timeout=30
-				)
-			scans.append(result.stdout)
-			if i < passes - 1:
-				time.sleep(2)
-		except subprocess.TimeoutExpired:
-			pass
-	return "".join(scans)
+	except subprocess.TimeoutExpired:
+		pass
+	return result.stdout
 
 
 def parse_scan(raw: str) -> list[dict]:
@@ -1855,7 +1849,7 @@ def main():
 		formatter_class=argparse.RawDescriptionHelpFormatter
 	)
 	parser.add_argument('--interface', '-i', default='', help='Wireless interface (auto-detected if omitted)')
-	parser.add_argument('--interval', type=int, default=15, help='Live-update interval in seconds (default: 15)')
+	parser.add_argument('--interval', type=int, default=5, help='Live-update interval in seconds (default: 5)')
 	args = parser.parse_args()
 
 	iface = args.interface or detect_interface()
