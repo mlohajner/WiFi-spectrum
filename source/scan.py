@@ -709,6 +709,7 @@ def contrasting_text_color(hex_color: str) -> str:
 
 
 def run_scan(interface: str) -> str:
+	scanresult = ""
 	try:
 		result = subprocess.run(
 			['iw', 'dev', interface, 'scan'],
@@ -719,9 +720,10 @@ def run_scan(interface: str) -> str:
 				['sudo', 'iw', 'dev', interface, 'scan'],
 				capture_output=True, text=True, timeout=30
 			)
+		scanresult = result.stdout
 	except subprocess.TimeoutExpired:
 		pass
-	return result.stdout
+	return scanresult
 
 
 def parse_scan(raw: str) -> list[dict]:
