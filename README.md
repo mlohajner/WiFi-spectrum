@@ -3,8 +3,8 @@ WiFi Spectrum Analyser - See your WiFi spectrum, not just a list of networks.
 
 A native Linux WiFi network scanner and spectrum visualizer, built with Python, GTK, and an embedded WebKitGTK view. Seamless on both X11 and Wayland.
 
-![WiFi Spectrum — dark mode](screenshots/dark-mode.png)
-![WiFi Spectrum — light mode](screenshots/light-mode.png)
+<img src="screenshots/dark-mode.png" width="40%" align="left">
+<img src="screenshots/light-mode.png" width="40%">
 
 ## Features
 
