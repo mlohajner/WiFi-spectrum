@@ -44,9 +44,3 @@ A prebuilt standalone binary (compiled with [Nuitka](https://nuitka.net/)) is av
 
 Custom `nmcli` connection parameters and theme preference can be set from the settings dialog.  
 [More config details...](config)
-
-## Screenshots
-
-| Dark mode | Light mode |
-|---|---|
-| ![dark](screenshots/screenshot2.png) | ![light](screenshots/screenshot1.png) |
