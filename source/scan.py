@@ -709,7 +709,6 @@ def contrasting_text_color(hex_color: str) -> str:
 
 
 def run_scan(interface: str) -> str:
-	scanresult = ""
 	try:
 		result = subprocess.run(
 			['iw', 'dev', interface, 'scan'],
@@ -720,10 +719,9 @@ def run_scan(interface: str) -> str:
 				['sudo', 'iw', 'dev', interface, 'scan'],
 				capture_output=True, text=True, timeout=30
 			)
-		scanresult = result.stdout
 	except subprocess.TimeoutExpired:
 		pass
-	return scanresult
+	return result.stdout
 
 
 def parse_scan(raw: str) -> list[dict]:
@@ -952,6 +950,8 @@ PALETTE = [
 def ssid_color(ssid: str, index: int) -> str:
 	return PALETTE[index % len(PALETTE)]
 
+def bssid_color(bssid: str) -> str:
+	return '#' + bssid[-8:].replace(':', '')
 
 # ---------------------------------------------------------------------------
 # HTML/SVG generator
@@ -1338,7 +1338,7 @@ buildBand(nets6,  'band6',  '6GHz');
 def build_html(networks: list[dict], interface: str, adapter_desc: str = '', theme: str = 'auto', accent: str = None) -> str:
 	# Assign colours
 	for i, net in enumerate(networks):
-		net['color'] = ssid_color(net['ssid'], i)
+		net['color'] = bssid_color(net['bssid'])
 
 	timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
@@ -1439,7 +1439,7 @@ def show_gtk(html: str, interface: str, interval: int = 15):
 					continue
 				networks = parse_scan(raw)
 				for i, n in enumerate(networks):
-					n['color'] = ssid_color(n['ssid'], i)
+					n['color'] = bssid_color(n['bssid'])
 
 				js = f'updateNetworks({json.dumps(networks, ensure_ascii=False)})'
 
