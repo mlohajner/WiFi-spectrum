@@ -938,17 +938,8 @@ def parse_scan(raw: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Colour palette (deterministic per SSID)
+# Colour deterministic per BSSID
 # ---------------------------------------------------------------------------
-
-PALETTE = [
-	'#00d4ff', '#ff6b35', '#7fff6b', '#ff3d9a', '#ffd700',
-	'#a855f7', '#22c55e', '#f97316', '#06b6d4', '#ec4899',
-	'#84cc16', '#8b5cf6', '#14b8a6', '#fb923c', '#e879f9',
-]
-
-def ssid_color(ssid: str, index: int) -> str:
-	return PALETTE[index % len(PALETTE)]
 
 def bssid_color(bssid: str) -> str:
 	return '#' + bssid[-8:].replace(':', '')
@@ -1749,12 +1740,12 @@ def show_gtk(html: str, interface: str, interval: int = 15):
 
 		web = WebKit.WebView(user_content_manager=ucm)
 # Enable inspector for debugging (remove later)
-#		settings = web.get_settings()
-#		settings.set_enable_developer_extras(True)
-#		web.set_settings(settings)
-#		web.connect("context-menu", lambda *_: False)
+		settings = web.get_settings()
+		settings.set_enable_developer_extras(True)
+		web.set_settings(settings)
+		web.connect("context-menu", lambda *_: False)
 # Disable context menu
-		web.connect("context-menu", lambda *_: True)
+#		web.connect("context-menu", lambda *_: True)
 		web.load_html(html, "file:///")
 
 		# ------------------------------------------------------------ #
