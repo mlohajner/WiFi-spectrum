@@ -942,7 +942,9 @@ def parse_scan(raw: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def bssid_color(bssid: str) -> str:
-	return '#' + bssid[-8:].replace(':', '')
+	"""Generate a deterministic CSS colour directly from the BSSID."""
+	hex_bssid = re.sub(r'[^0-9a-fA-F]', '', str(bssid))
+	return '#' + hex_bssid[-6:].lower().rjust(6, '0')
 
 # ---------------------------------------------------------------------------
 # HTML/SVG generator
@@ -984,8 +986,14 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 <div id="tooltip"></div>
 
 <script>
-const PALETTE = {palette_json};
 const NETWORKS = {networks_json};
+
+// Deterministic colour for a network: the BSSID itself is the colour source.
+// Keep this in sync with Python bssid_color(): take the last 6 BSSID hex digits.
+function bssidColor(bssid) {{
+  const hex = String(bssid || '').replace(/[^0-9a-fA-F]/g, '').slice(-6);
+  return '#' + hex.padStart(6, '0').toLowerCase();
+}}
 
 // ---- Theme control (called from Python via evaluate_javascript) ----
 function setTheme(mode) {{
@@ -1000,12 +1008,10 @@ function setTheme(mode) {{
 
 // ---- Live update entry point (called from Python via evaluate_javascript) ----
 function updateNetworks(newNetworks) {{
-  // Merge into global, preserving colour assignments by BSSID
-  const colorMap = {{}};
-  NETWORKS.forEach(n => colorMap[n.bssid] = n.color);
+  // Colour is derived only from BSSID, so it is stable across every scan/update.
   NETWORKS.length = 0;
-  newNetworks.forEach((n, i) => {{
-    n.color = colorMap[n.bssid] || PALETTE[i % PALETTE.length];
+  newNetworks.forEach(n => {{
+    n.color = bssidColor(n.bssid);
     NETWORKS.push(n);
   }});
 
@@ -1362,7 +1368,6 @@ def build_html(networks: list[dict], interface: str, adapter_desc: str = '', the
 		theme_attr=theme_attr,
 		style=_style,
 		networks_json=json.dumps(networks, ensure_ascii=False),
-		palette_json=json.dumps(PALETTE),
 		ch24_json=json.dumps({str(k): v for k, v in CHANNEL_FREQ_24.items()}),
 		ch5_json=json.dumps({str(k): v for k, v in CHANNEL_FREQ_5.items()}),
 		ch6_json=json.dumps({str(k): v for k, v in CHANNEL_FREQ_6.items()}),
@@ -1370,7 +1375,7 @@ def build_html(networks: list[dict], interface: str, adapter_desc: str = '', the
 
 
 
-def show_gtk(html: str, interface: str, interval: int = 15):
+def show_gtk(html: str, interface: str, interval: int = 5):
 	if not GTK_AVAILABLE:
 		print('[!] GTK/WebKit not available, HTML generated only.')
 		return
