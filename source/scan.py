@@ -942,9 +942,7 @@ def parse_scan(raw: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def bssid_color(bssid: str) -> str:
-	"""Generate a deterministic CSS colour directly from the BSSID."""
-	hex_bssid = re.sub(r'[^0-9a-fA-F]', '', str(bssid))
-	return '#' + hex_bssid[-6:].lower().rjust(6, '0')
+	return '#' + bssid[-8:].replace(':', '')
 
 # ---------------------------------------------------------------------------
 # HTML/SVG generator
@@ -988,13 +986,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 <script>
 const NETWORKS = {networks_json};
 
-// Deterministic colour for a network: the BSSID itself is the colour source.
-// Keep this in sync with Python bssid_color(): take the last 6 BSSID hex digits.
-function bssidColor(bssid) {{
-  const hex = String(bssid || '').replace(/[^0-9a-fA-F]/g, '').slice(-6);
-  return '#' + hex.padStart(6, '0').toLowerCase();
-}}
-
 // ---- Theme control (called from Python via evaluate_javascript) ----
 function setTheme(mode) {{
   if (mode === 'dark') {{
@@ -1008,10 +999,9 @@ function setTheme(mode) {{
 
 // ---- Live update entry point (called from Python via evaluate_javascript) ----
 function updateNetworks(newNetworks) {{
-  // Colour is derived only from BSSID, so it is stable across every scan/update.
   NETWORKS.length = 0;
-  newNetworks.forEach(n => {{
-    n.color = bssidColor(n.bssid);
+  newNetworks.forEach((n, i) => {{
+    n.color = '#' + n.bssid.slice(-8).replace(/:/g, '');
     NETWORKS.push(n);
   }});
 
@@ -1745,12 +1735,12 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 
 		web = WebKit.WebView(user_content_manager=ucm)
 # Enable inspector for debugging (remove later)
-		settings = web.get_settings()
-		settings.set_enable_developer_extras(True)
-		web.set_settings(settings)
-		web.connect("context-menu", lambda *_: False)
+#		settings = web.get_settings()
+#		settings.set_enable_developer_extras(True)
+#		web.set_settings(settings)
+#		web.connect("context-menu", lambda *_: False)
 # Disable context menu
-#		web.connect("context-menu", lambda *_: True)
+		web.connect("context-menu", lambda *_: True)
 		web.load_html(html, "file:///")
 
 		# ------------------------------------------------------------ #
