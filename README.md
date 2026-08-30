@@ -1,4 +1,4 @@
-<h1> <img src="wifi-spectrum.png" width="64" valign="middle" alt="WiFi-spectrum icon"> WiFi-spectrum </h1>
+<h1> <img src="wifi-spectrum.png" width="64" valign="middle" alt="WiFi-spectrum icon"> WiFi-spectrum (scan & scan2)</h1>
 WiFi Spectrum Analyser - See your WiFi spectrum, not just a list of networks.
 
 A native Linux WiFi network scanner and spectrum visualizer, built with Python, GTK, and an embedded WebKitGTK view. Seamless on both X11 and Wayland.
