@@ -18,6 +18,7 @@ A native Linux WiFi network scanner and spectrum visualizer, built with Python, 
 - **Hover tooltips** on both the graph and table rows, cross-highlighted by BSSID
 - **One-click connect** via NetworkManager (`nmcli`)
 - **rfkill awareness** - detects when WiFi is hardware/software blocked and surfaces it in the UI
+- **Bluetooth** - visualizes BT devices in range with their advertised name, type, servises, mac...
 - **Automatic theme detection** - follows your system theme (dark/light), or set a manual preference
 - **Fully customizable appearance** - the entire UI can be restyled via theme.css
 - **Color determined by BSSID (last 3 MAC bytes)** - first 3 are OEM specific, - sideeffect, virtual APs are similar color
