@@ -5,6 +5,9 @@ A native Linux WiFi network scanner and spectrum visualizer, built with Python, 
 
 <img src="screenshots/dark-mode.png" width="40%" align="left">
 <img src="screenshots/light-mode.png" width="40%">
+# scan2 (Bluetooth upgrade)
+<img src="screenshots/bluetooth1.png" width="40%" align="left">
+<img src="screenshots/bluetooth2.png" width="40%">
 
 ## Features
 
