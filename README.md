@@ -14,7 +14,7 @@ A native Linux WiFi network scanner and spectrum visualizer, built with Python, 
 ## Features
 
 - **Live spectrum visualization** - overlapping channel curves show at a glance which networks are colliding on 2.4 GHz, 5 GHz, and 6 GHz bands
-- **Bluetooth** - visualizes BT devices in range with their advertised name, type, servises, mac...
+- **Bluetooth** - visualizes BT devices in range with their advertised name, type, services, mac...
 - **Sortable network table** - SSID, BSSID, channel, width, signal strength, frequency, and security type
 - **Hover tooltips** on both the graph and table rows, cross-highlighted by BSSID
 - **One-click connect** via NetworkManager (`nmcli`)
