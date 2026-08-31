@@ -228,27 +228,51 @@ def save_nmcli_extra(text: str) -> bool:
 THEME_CONFIG_PATH = os.path.expanduser('~/.config/wifi-spectrum/theme.conf')
 
 def load_theme_pref() -> str:
-	"""Return 'auto' | 'dark' | 'light'. Defaults to 'auto'."""
+	"""Return 'auto' | 'dark' | 'light'. Defaults to 'auto'. (line 1 of theme.conf)"""
 	try:
 		with open(THEME_CONFIG_PATH, 'r') as f:
-			val = f.read().strip().lower()
-			if val in ('auto', 'dark', 'light'):
-				return val
+			first_line = f.readline().strip().lower()
+			if first_line in ('auto', 'dark', 'light'):
+				return first_line
 	except Exception:
 		pass
 	return 'auto'
 
-def save_theme_pref(value: str) -> bool:
-	if value not in ('auto', 'dark', 'light'):
-		value = 'auto'
+
+def load_bluetooth_pref() -> bool:
+	"""Return True if Bluetooth scanning is enabled. Defaults to False (off).
+	Read from line 2 of theme.conf: 'bluetooth=on' / 'bluetooth=off'."""
+	try:
+		with open(THEME_CONFIG_PATH, 'r') as f:
+			lines = f.read().splitlines()
+		if len(lines) >= 2:
+			return lines[1].strip().lower() == 'bluetooth=on'
+	except Exception:
+		pass
+	return False
+
+
+def _save_prefs(theme_value: str, bluetooth_enabled: bool) -> bool:
+	"""Write both theme.conf lines together (theme + bluetooth=on/off) so
+	saving one preference never clobbers the other."""
+	if theme_value not in ('auto', 'dark', 'light'):
+		theme_value = 'auto'
 	try:
 		os.makedirs(os.path.dirname(THEME_CONFIG_PATH), exist_ok=True)
 		with open(THEME_CONFIG_PATH, 'w') as f:
-			f.write(value)
+			f.write(f"{theme_value}\nbluetooth={'on' if bluetooth_enabled else 'off'}\n")
 		return True
 	except Exception as e:
-		print(f'[!] Could not save theme pref: {e}')
+		print(f'[!] Could not save theme/bluetooth config: {e}')
 		return False
+
+
+def save_theme_pref(value: str) -> bool:
+	return _save_prefs(value, load_bluetooth_pref())
+
+
+def save_bluetooth_pref(enabled: bool) -> bool:
+	return _save_prefs(load_theme_pref(), enabled)
 
 
 def detect_system_dark_mode() -> bool:
@@ -509,6 +533,7 @@ svg.spectrum {
 	letter-spacing: 0.08em;
 	color: var(--dim);
 	border-bottom: 1px solid var(--border);
+	text-transform: uppercase;
 	background: var(--surface2);
 }
 #tooltip .tt-row {
@@ -1123,7 +1148,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   <button class="tab active" onclick="showBand('24')">2.4 GHz <span class="count-badge" id="cnt24"></span></button>
   <button class="tab" onclick="showBand('5')">5 GHz <span class="count-badge" id="cnt5"></span></button>
   <button class="tab" onclick="showBand('6')">6 GHz <span class="count-badge" id="cnt6"></span></button>
-  <button class="tab" onclick="showBand('bt')">Bluetooth <span class="count-badge" id="cntbt"></span></button>
+  <button class="tab" id="tab-bt" onclick="showBand('bt')"{bt_tab_hidden}>Bluetooth <span class="count-badge" id="cntbt"></span></button>
 </div>
 
 <div id="band24" class="band-panel active"></div>
@@ -1149,6 +1174,25 @@ function setTheme(mode) {{
 	document.documentElement.setAttribute('data-theme', 'light');
   }} else {{
 	document.documentElement.removeAttribute('data-theme');
+  }}
+}}
+
+// ---- Bluetooth on/off control (called from Python via evaluate_javascript
+// when the "Bluetooth scan" switch is toggled in Settings) ----
+function setBluetoothEnabled(enabled) {{
+  const tab = document.getElementById('tab-bt');
+  if (!tab) return;
+  if (enabled) {{
+    tab.style.display = '';
+  }} else {{
+    tab.style.display = 'none';
+    if (tab.classList.contains('active')) {{
+      tab.classList.remove('active');
+      document.getElementById('bandbt').classList.remove('active');
+      const first = document.querySelector('.tab');
+      if (first) first.classList.add('active');
+      document.getElementById('band24').classList.add('active');
+    }}
   }}
 }}
 
@@ -1218,7 +1262,7 @@ function showBTTip(e, dev) {{
   const quality = sig >= -50 ? 'Excellent' : sig >= -60 ? 'Good' : sig >= -70 ? 'Fair' : 'Weak';
   const uuids = dev.uuids || [];
   const uuidRows = uuids.length
-	? uuids.map(u => `<div class="tt-uuid">${{u}}</div>`).join('')
+	? uuids.slice(0, 4).map(u => `<div class="tt-uuid">${{u}}</div>`).join('') + (uuids.length > 4 ? '<div class="tt-uuid">…</div>' : '')
 	: '';
   tip.innerHTML = `
 	<div class="tt-ssid">${{dev.name}}</div>
@@ -1683,7 +1727,7 @@ buildBT(BT_DEVICES, 'bandbt');
 """
 
 
-def build_html(networks: list[dict], interface: str, adapter_desc: str = '', theme: str = 'auto', accent: str = None, bt_devices: list[dict] = None) -> str:
+def build_html(networks: list[dict], interface: str, adapter_desc: str = '', theme: str = 'auto', accent: str = None, bt_devices: list[dict] = None, bt_enabled: bool = False) -> str:
 	bt_devices = bt_devices or []
 
 	# Assign colours
@@ -1722,6 +1766,7 @@ def build_html(networks: list[dict], interface: str, adapter_desc: str = '', the
 		total=len(networks),
 		theme_attr=theme_attr,
 		style=_style,
+		bt_tab_hidden='' if bt_enabled else ' style="display:none"',
 		networks_json=json.dumps(networks, ensure_ascii=False),
 		bt_json=json.dumps(bt_devices, ensure_ascii=False),
 		ch24_json=json.dumps({str(k): v for k, v in CHANNEL_FREQ_24.items()}),
@@ -1745,15 +1790,46 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 	_stop_flag = threading.Event()
 	_nmcli_extra = {'text': load_nmcli_extra()}  # custom nmcli property=value lines, persisted to disk
 	_theme_pref = {'value': load_theme_pref()}   # 'auto' | 'dark' | 'light', persisted to disk
+	_bt_enabled = {'value': load_bluetooth_pref()}  # bool, persisted to disk (default off)
 
 	# Continuous BT discovery state — one persistent bluetoothctl session
-	# (started once in activate()), fed by _bt_reader_loop(). The main
-	# _scan_loop() below just reads a snapshot of this dict every
-	# `interval` tick; it never starts/stops the scan itself. `interval`
-	# is the SINGLE source of truth for both WiFi scan cadence and the
-	# BT UI refresh cadence — no separate BT interval anywhere.
+	# (started/stopped on demand, see _start_bt_reader/_stop_bt_reader),
+	# fed by _bt_reader_loop(). The main _scan_loop() below just reads a
+	# snapshot of this dict every `interval` tick; it never starts/stops
+	# the scan itself. `interval` is the SINGLE source of truth for both
+	# WiFi scan cadence and the BT UI refresh cadence — no separate BT
+	# interval anywhere. When Bluetooth scanning is disabled in Settings,
+	# no rfkill check runs, no bluetoothctl session is started, and no BT
+	# data is pushed to the WebView at all.
 	_bt_devices = {}
 	_bt_lock = threading.Lock()
+	_bt_reader = {'thread': None, 'stop': threading.Event()}
+
+	def _start_bt_reader():
+		"""(Re)start the persistent bluetoothctl session. No-op if one is
+		already running."""
+		if _bt_reader['thread'] is not None and _bt_reader['thread'].is_alive():
+			return
+		_bt_reader['stop'] = threading.Event()
+		with _bt_lock:
+			_bt_devices.clear()
+		t = threading.Thread(
+			target=_bt_reader_loop, args=(_bt_devices, _bt_lock, _bt_reader['stop']), daemon=True
+		)
+		_bt_reader['thread'] = t
+		t.start()
+
+	def _stop_bt_reader():
+		"""Stop the bluetoothctl session (if any) and forget any devices
+		collected so far."""
+		_bt_reader['stop'].set()
+		_bt_reader['thread'] = None
+		with _bt_lock:
+			_bt_devices.clear()
+
+	# Cumulative WiFi state — keyed by BSSID. Each scan merges into this
+	# dictionary instead of replacing the previous scan result.
+	_wifi_networks = {}
 
 	# ------------------------------------------------------------------ #
 	# Background scan loop – runs in a daemon thread. Drives BOTH the    #
@@ -1796,7 +1872,9 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 						networks = parse_scan(raw)
 						for n in networks:
 							n['color'] = bssid_color(n['bssid'])
-						js = f'updateNetworks({json.dumps(networks, ensure_ascii=False)})'
+							_wifi_networks[n['bssid']] = n
+						wifi_snapshot = list(_wifi_networks.values())
+						js = f'updateNetworks({json.dumps(wifi_snapshot, ensure_ascii=False)})'
 						if _web_ref:
 							GLib.idle_add(_push_update, _web_ref[0], js)
 					else:
@@ -1808,8 +1886,14 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 			# Bluetooth — same passive pre-flight pattern. The scan     #
 			# itself is already running continuously in the background #
 			# (_bt_reader_loop); this just pushes a snapshot of what's  #
-			# been collected so far into the UI.                       #
+			# been collected so far into the UI. Skipped entirely when  #
+			# Bluetooth scanning is disabled: no rfkill check, no       #
+			# bluetoothctl, no data pushed to the WebView.              #
 			# -------------------------------------------------------- #
+			if not _bt_enabled['value']:
+				GLib.idle_add(_hide_bt_banner)
+				continue
+
 			btrf = bt_rfkill_status()
 			if btrf['hard']:
 				GLib.idle_add(_show_bt_banner,
@@ -1920,6 +2004,15 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 		if _web_ref:
 			web = _web_ref[0]
 			web.evaluate_javascript(f"setTheme('{value}')", -1, None, None, None, None, None)
+		return False
+
+	def _apply_bt_enabled(enabled: bool):
+		"""Push the Bluetooth tab visibility into the live WebView (main
+		loop only)."""
+		if _web_ref:
+			web = _web_ref[0]
+			js_bool = 'true' if enabled else 'false'
+			web.evaluate_javascript(f"setBluetoothEnabled({js_bool})", -1, None, None, None, None, None)
 		return False
 
 	def _show_connect_dialog(win, ssid: str, bssid: str, security: str):
@@ -2057,7 +2150,7 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 
 	def _show_nmcli_settings(win):
 		dialog = Gtk.Dialog(title="WiFi Spectrum Settings", transient_for=win, modal=True)
-		dialog.set_default_size(480, 380)
+		dialog.set_default_size(480, 450)
 
 		box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
 		box.set_margin_top(16)
@@ -2076,6 +2169,24 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 		theme_combo.append('light', 'Prefer light mode')
 		theme_combo.set_active_id(_theme_pref['value'])
 		box.append(theme_combo)
+
+		separator0 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+		separator0.set_margin_top(6)
+		separator0.set_margin_bottom(2)
+		box.append(separator0)
+
+		# ---- Bluetooth scan switch ----
+		bt_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+		bt_row.set_margin_top(6)
+		bt_label = Gtk.Label(label="Bluetooth scan")
+		bt_label.set_halign(Gtk.Align.START)
+		bt_label.set_hexpand(True)
+		bt_switch = Gtk.Switch()
+		bt_switch.set_active(_bt_enabled['value'])
+		bt_switch.set_halign(Gtk.Align.END)
+		bt_row.append(bt_label)
+		bt_row.append(bt_switch)
+		box.append(bt_row)
 
 		separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
 		separator.set_margin_top(6)
@@ -2125,6 +2236,20 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 					_theme_pref['value'] = new_theme
 					save_theme_pref(new_theme)
 					_apply_theme(resolve_theme(new_theme))
+
+				new_bt = bt_switch.get_active()
+				if new_bt != _bt_enabled['value']:
+					_bt_enabled['value'] = new_bt
+					save_bluetooth_pref(new_bt)
+					if new_bt:
+						_start_bt_reader()
+						GLib.idle_add(_apply_bt_enabled, True)
+					else:
+						_stop_bt_reader()
+						GLib.idle_add(_hide_bt_banner)
+						if _web_ref:
+							GLib.idle_add(_push_update, _web_ref[0], 'updateBTDevices([])')
+						GLib.idle_add(_apply_bt_enabled, False)
 			d.destroy()
 
 		dialog.connect("response", on_response)
@@ -2285,12 +2410,14 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 		#   NOT wait on `interval` — it just keeps reading.
 		t = threading.Thread(target=_scan_loop, daemon=True)
 		t.start()
-		t_bt = threading.Thread(
-			target=_bt_reader_loop, args=(_bt_devices, _bt_lock, _stop_flag), daemon=True
-		)
-		t_bt.start()
+		if _bt_enabled['value']:
+			_start_bt_reader()
 
-		win.connect("destroy", lambda *_: _stop_flag.set())
+		def _on_destroy(*_a):
+			_stop_flag.set()
+			_bt_reader['stop'].set()
+
+		win.connect("destroy", _on_destroy)
 
 	app.connect("activate", activate)
 	app.run([])
@@ -2306,8 +2433,10 @@ def main():
 	)
 	parser.add_argument('--interface', '-i', default='', help='Wireless interface (auto-detected if omitted)')
 	parser.add_argument('--interval', type=int, default=5,
-		help='Refresh interval in seconds - WiFi and the Bluetooth UI refresh interval (default: 5s)')
-
+		help='Refresh interval in seconds — single source of truth for BOTH the WiFi scan cadence '
+			 'and the Bluetooth UI refresh cadence (default: 5). Bluetooth discovery itself runs '
+			 'continuously in the background regardless of this value; this only controls how often '
+			 'the UI is updated with what has been found so far.')
 	args = parser.parse_args()
 
 	iface = args.interface or detect_interface()
@@ -2320,8 +2449,11 @@ def main():
 	theme = resolve_theme(theme_pref)
 	print(f'[*] Theme: {theme_pref} -> {theme}')
 
+	bt_enabled = load_bluetooth_pref()
+	print(f'[*] Bluetooth scan: {"on" if bt_enabled else "off"}')
+
 	# Build empty template — window opens immediately, scans run in background
-	html = build_html([], iface, adapter_desc, theme, bt_devices=[])
+	html = build_html([], iface, adapter_desc, theme, bt_devices=[], bt_enabled=bt_enabled)
 
 	show_gtk(html, iface, interval=args.interval)
 
