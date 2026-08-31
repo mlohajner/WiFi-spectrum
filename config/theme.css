@@ -1,5 +1,5 @@
 
-/* WiFi Spectrum -- full stylesheet.
+/* WiFi Spectrum -- theme stylesheet.
  *
  * Edit anything here: colours, fonts, spacing, hover effects, or add
  * entirely new rules. Restart the app to see changes.
@@ -181,33 +181,53 @@ svg.spectrum {
 	text-anchor: middle;
 }
 
-/* Network bell curves */
+/* Network bell curves / BT bars */
 .bell { opacity: 0.5; transition: opacity 0.15s; cursor: pointer; }
 .bell:hover { opacity: 1; }
 .bell.faded { opacity: 0.1; }
 .bell-stroke { fill: none; stroke-width: 2; opacity: 0.9; }
+.bar-stroke { fill: none; stroke-width: 2; opacity: 0.9; }
 
-/* Tooltip */
+/* Tooltip — styled like .net-table: header bar + row separators */
 #tooltip {
 	position: fixed;
-	background: var(--surface2);
+	background: var(--table-bg);
 	border: 1px solid var(--border);
 	border-radius: 6px;
-	padding: 10px 14px;
 	font-family: monospace;
 	font-size: 0.75rem;
 	pointer-events: none;
 	opacity: 0;
 	transition: opacity 0.1s;
 	z-index: 100;
-	max-width: 260px;
-	line-height: 1.7;
+	max-width: 320px;
 	color: var(--text);
+	overflow: hidden; /* clip rows to the rounded corners, like the titlebar */
 }
 #tooltip.visible { opacity: 1; }
-#tooltip .tt-ssid { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
-#tooltip .tt-row { color: var(--dim); }
+#tooltip .tt-ssid {
+	padding: 5px 14px;
+	font-family: monospace;
+	font-size: 1rem;
+	letter-spacing: 0.08em;
+	color: var(--dim);
+	border-bottom: 1px solid var(--border);
+	background: var(--surface2);
+}
+#tooltip .tt-row {
+	color: var(--dim);
+	padding: 4px 14px;
+	border-bottom: 1px solid var(--border);
+}
 #tooltip .tt-row span { color: var(--text); }
+#tooltip .tt-uuid {
+	color: var(--text);
+	padding: 3px 14px 3px 26px;
+	font-size: 0.68rem;
+	white-space: nowrap;
+	border-bottom: 1px solid var(--border);
+}
+#tooltip > *:last-child { border-bottom: none; }
 
 /* Table */
 .net-table {
