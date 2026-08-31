@@ -13,6 +13,7 @@ import tempfile
 import json
 import threading
 import select
+import warnings
 
 try:
 	import gi
@@ -64,10 +65,6 @@ def freq_to_channel(freq_mhz: int) -> int:
 		return (freq_mhz - 5950) // 5 + 1
 	return 0
 
-# ---------------------------------------------------------------------------
-# IW scan parser
-# ---------------------------------------------------------------------------
-
 def detect_interface() -> str:
 	"""Auto-detect first wireless interface."""
 	try:
@@ -77,7 +74,7 @@ def detect_interface() -> str:
 			return m.group(1)
 	except Exception:
 		pass
-	# fallback: check /sys/class/net
+# fallback: check /sys/class/net
 	for name in os.listdir('/sys/class/net'):
 		if os.path.exists(f'/sys/class/net/{name}/wireless'):
 			return name
@@ -94,7 +91,8 @@ def detect_adapter_info(interface: str) -> str:
 	except Exception:
 		return ''
 
-	# PCI(e) device — the last part of the path looks like 0000:2e:00.0
+# PCI(e) device — the last part of the path looks like 0000:2e:00.0
+# ----------------------------------------------------------------------
 	m = re.search(r'([0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-9a-fA-F])$', real)
 	if m:
 		pci_addr = m.group(1)
@@ -105,7 +103,8 @@ def detect_adapter_info(interface: str) -> str:
 		except Exception:
 			pass
 
-	# USB device — walk up to the folder with idVendor/idProduct, then find it in lsusb
+# USB device — walk up to the folder with idVendor/idProduct, then find it in lsusb
+# ----------------------------------------------------------------------
 	usb_path = real
 	while usb_path and usb_path != '/':
 		if os.path.exists(os.path.join(usb_path, 'idVendor')):
@@ -283,7 +282,7 @@ def detect_system_dark_mode() -> bool:
 	Cinnamon and several other DEs apply a dark GTK theme without ever
 	flipping that property, so the CSS media query alone misses it.
 	We actively probe a few different sources here instead."""
-	# 1) Live GTK settings (covers GNOME, and any DE that does set this)
+# Live GTK settings (covers GNOME, and any DE that does set this)
 	if GTK_AVAILABLE:
 		try:
 			settings = Gtk.Settings.get_default()
@@ -296,8 +295,8 @@ def detect_system_dark_mode() -> bool:
 		except Exception:
 			pass
 
-	# 2) gsettings — covers Cinnamon and GNOME, which both mirror the
-	# active GTK theme name (and GNOME additionally exposes color-scheme)
+# gsettings — covers Cinnamon and GNOME, which both mirror the
+# active GTK theme name (and GNOME additionally exposes color-scheme)
 	checks = [
 		('org.gnome.desktop.interface', 'color-scheme'),
 		('org.cinnamon.desktop.interface', 'gtk-theme'),
@@ -710,29 +709,36 @@ def _accent_from_gsettings() -> str | None:
 def detect_accent_color() -> str:
 	"""Pull the *real* accent colour out of the current GTK theme instead
 	of hard-coding one, so the UI actually matches the desktop."""
-	# 1) Named CSS colours the theme itself defines — this is how
-	# libadwaita/GTK4 themes expose their accent, and is honoured by
-	# most themed GTK3-compat stylesheets too.
+# Named CSS colours the theme itself defines — this is how
+# libadwaita/GTK4 themes expose their accent, and is honoured by
+# most themed GTK3-compat stylesheets too.
 	if GTK_AVAILABLE:
 		try:
 			widget = Gtk.Label()
-			ctx = widget.get_style_context()
-			for name in ('accent_bg_color', 'accent_color', 'theme_selected_bg_color'):
-				ok, rgba = ctx.lookup_color(name)
-				if ok:
-					r = round(rgba.red * 255)
-					g = round(rgba.green * 255)
-					b = round(rgba.blue * 255)
-					return '#{:02x}{:02x}{:02x}'.format(r, g, b)
+			# get_style_context()/lookup_color() are deprecated since GTK 4.10,
+			# but GTK provides no replacement for querying named theme colours
+			# (e.g. accent_bg_color) — Gtk.Widget.get_color() only exposes the
+			# foreground colour. Silence the warning rather than chase a
+			# "proper" fix that doesn't exist yet.
+			with warnings.catch_warnings():
+				warnings.simplefilter('ignore', DeprecationWarning)
+				ctx = widget.get_style_context()
+				for name in ('accent_bg_color', 'accent_color', 'theme_selected_bg_color'):
+					ok, rgba = ctx.lookup_color(name)
+					if ok:
+						r = round(rgba.red * 255)
+						g = round(rgba.green * 255)
+						b = round(rgba.blue * 255)
+						return '#{:02x}{:02x}{:02x}'.format(r, g, b)
 		except Exception:
 			pass
 
-	# 2) GNOME 47+ accent-color setting (named preset -> hex)
+# GNOME 47+ accent-color setting (named preset -> hex)
 	found = _accent_from_gsettings()
 	if found:
 		return found
 
-	# 3) Fallback — the tool's original cyan
+# Fallback — the tool's original cyan
 	return DEFAULT_ACCENT
 
 
@@ -778,7 +784,9 @@ def run_scan(interface: str) -> str:
 		pass
 	return result.stdout
 
-
+# ----------------------------------------------------------------------
+# IW scan parser
+# ----------------------------------------------------------------------
 def parse_scan(raw: str) -> list[dict]:
 	networks = []
 	current = None
@@ -790,9 +798,8 @@ def parse_scan(raw: str) -> list[dict]:
 	for line in raw.splitlines():
 		line = line.strip()
 
-		# =========================
-		# NEW BSS
-		# =========================
+# NEW BSS
+# ----------------------------------------------------------------------
 		m = re.match(r'^BSS\s+([\da-f:]+)', line, re.I)
 		if m:
 			finalize()
@@ -821,9 +828,8 @@ def parse_scan(raw: str) -> list[dict]:
 		if not current:
 			continue
 
-		# =========================
-		# FREQ / BAND
-		# =========================
+# FREQ / BAND
+# ----------------------------------------------------------------------
 		m = re.match(r'^freq:\s*(\d+)', line)
 		if m:
 			freq = int(m.group(1))
@@ -838,25 +844,22 @@ def parse_scan(raw: str) -> list[dict]:
 				current['band'] = '6GHz'
 			continue
 
-		# =========================
-		# SIGNAL
-		# =========================
+# SIGNAL
+# ----------------------------------------------------------------------
 		m = re.match(r'^signal:\s*([-\d.]+)', line)
 		if m:
 			current['signal'] = float(m.group(1))
 			continue
 
-		# =========================
-		# SSID
-		# =========================
+# SSID
+# ----------------------------------------------------------------------
 		m = re.match(r'^SSID:\s*(.*)', line)
 		if m:
 			current['ssid'] = m.group(1).strip() or '<hidden>'
 			continue
 
-		# =========================
-		# SECURITY
-		# =========================
+# SECURITY
+# ----------------------------------------------------------------------
 		if re.match(r'^RSN:', line):
 			current['_rsn'] = True
 			continue
@@ -874,9 +877,8 @@ def parse_scan(raw: str) -> list[dict]:
 			current['_rsn'] = True
 			continue
 
-		# =========================
-		# HT (2.4 GHz only)
-		# =========================
+# HT (2.4 GHz only)
+# ----------------------------------------------------------------------
 		if 'HT operation' in line:
 			current['_ht']['enabled'] = True
 			continue
@@ -887,9 +889,8 @@ def parse_scan(raw: str) -> list[dict]:
 			current['_ht']['secondary'] = 0 if offset in ('no', 'none', '0') else 1
 			continue
 
-		# =========================
-		# VHT (ONLY 5 GHz)
-		# =========================
+# VHT (ONLY 5 GHz)
+# ----------------------------------------------------------------------
 		if 'VHT operation' in line:
 			if current['band'] == '5GHz':
 				current['_vht']['enabled'] = True
@@ -907,9 +908,8 @@ def parse_scan(raw: str) -> list[dict]:
 			current['_vht']['width'] = vht_map.get(code)
 			continue
 
-		# =========================
-		# HE (ONLY 5/6 GHz)
-		# =========================
+# HE (ONLY 5/6 GHz)
+# ----------------------------------------------------------------------
 		if 'HE Operation' in line:
 			if current['freq'] >= 5000:
 				current['_he']['enabled'] = True
@@ -920,9 +920,8 @@ def parse_scan(raw: str) -> list[dict]:
 			current['_he']['width'] = int(m.group(1))
 			continue
 
-		# =========================
-		# EHT (Wi-Fi 7, up to 320 MHz — 6 GHz primarily, also 5 GHz)
-		# =========================
+# EHT (Wi-Fi 7, up to 320 MHz — 6 GHz primarily, also 5 GHz)
+# ----------------------------------------------------------------------
 		if 'EHT Operation' in line:
 			if current['freq'] >= 5000:
 				current['_eht']['enabled'] = True
@@ -933,34 +932,36 @@ def parse_scan(raw: str) -> list[dict]:
 			current['_eht']['width'] = int(m.group(1))
 			continue
 
-	# =========================
-	# FINALIZE
-	# =========================
 	finalize()
 
 	for n in networks:
 		band = n['band']
 
-		# EHT (highest priority — Wi-Fi 7, up to 320 MHz)
+# EHT (highest priority — Wi-Fi 7, up to 320 MHz)
+# ----------------------------------------------------------------------
 		if n['_eht']['width'] and n['band'] in ('5GHz', '6GHz'):
 			n['width'] = n['_eht']['width']
 
-		# HE
+# HE
+# ----------------------------------------------------------------------
 		elif n['_he']['width'] and n['band'] in ('5GHz', '6GHz'):
 			n['width'] = n['_he']['width']
 
-		# VHT (5 GHz only)
+# VHT (5 GHz only)
+# ----------------------------------------------------------------------
 		elif band == '5GHz' and n['_vht']['width']:
 			n['width'] = n['_vht']['width']
 
-		# HT (2.4 GHz only)
+# HT (2.4 GHz only)
+# ----------------------------------------------------------------------
 		elif band == '2.4GHz':
 			n['width'] = 40 if n['_ht']['secondary'] else 20
 
 		else:
 			n['width'] = 20
 
-		# HARD SAFETY GUARD (critical fix) — per-band sane upper bounds
+# HARD SAFETY GUARD (critical fix) — per-band sane upper bounds
+# ----------------------------------------------------------------------
 		if n['band'] == '2.4GHz' and n['width'] > 40:
 			n['width'] = 40
 		elif n['band'] == '5GHz' and n['width'] > 160:
@@ -968,7 +969,8 @@ def parse_scan(raw: str) -> list[dict]:
 		elif n['band'] == '6GHz' and n['width'] > 320:
 			n['width'] = 320
 
-		# Determine security type
+# Determine security type
+# ----------------------------------------------------------------------
 		if n['_sae']:
 			n['security'] = 'WPA3'
 		elif n['_rsn']:
@@ -992,12 +994,12 @@ def parse_scan(raw: str) -> list[dict]:
 	return networks
 
 
-# ---------------------------------------------------------------------------
+# ----------------------------------------------------------------------
 # Bluetooth: continuous discovery via a single long-lived `bluetoothctl`
 # session. BlueZ doesn't expose frequency-hop occupancy over the CLI, so
 # this is a "devices + live attributes" view (Name, RSSI, Icon, UUIDs),
 # not a true spectral occupancy view like the WiFi tabs.
-# ---------------------------------------------------------------------------
+# ----------------------------------------------------------------------
 
 # bluetoothctl colourises its output with ANSI escapes EVEN when stdout is
 # a pipe, not just a real terminal. If an escape sequence lands right
@@ -1109,17 +1111,13 @@ def _bt_reader_loop(devices: dict, lock: threading.Lock, stop_flag: threading.Ev
 			except Exception:
 				pass
 
-
-# ---------------------------------------------------------------------------
 # Colour deterministic per BSSID/MAC
-# ---------------------------------------------------------------------------
-
 def bssid_color(bssid: str) -> str:
 	return '#' + bssid[-8:].replace(':', '')
 
-# ---------------------------------------------------------------------------
+# ----------------------------------------------------------------------
 # HTML/SVG generator
-# ---------------------------------------------------------------------------
+# ----------------------------------------------------------------------
 
 HTML_TEMPLATE = r"""<!DOCTYPE html>
 <html lang="en"{theme_attr}>
@@ -1262,7 +1260,7 @@ function showBTTip(e, dev) {{
   const quality = sig >= -50 ? 'Excellent' : sig >= -60 ? 'Good' : sig >= -70 ? 'Fair' : 'Weak';
   const uuids = dev.uuids || [];
   const uuidRows = uuids.length
-	? uuids.slice(0, 4).map(u => `<div class="tt-uuid">${{u}}</div>`).join('') + (uuids.length > 4 ? '<div class="tt-uuid">…</div>' : '')
+	? uuids.map(u => `<div class="tt-uuid">${{u}}</div>`).join('')
 	: '';
   tip.innerHTML = `
 	<div class="tt-ssid">${{dev.name}}</div>
@@ -1730,7 +1728,7 @@ buildBT(BT_DEVICES, 'bandbt');
 def build_html(networks: list[dict], interface: str, adapter_desc: str = '', theme: str = 'auto', accent: str = None, bt_devices: list[dict] = None, bt_enabled: bool = False) -> str:
 	bt_devices = bt_devices or []
 
-	# Assign colours
+# Assign colours
 	for i, net in enumerate(networks):
 		net['color'] = bssid_color(net['bssid'])
 	for dev in bt_devices:
@@ -1745,8 +1743,8 @@ def build_html(networks: list[dict], interface: str, adapter_desc: str = '', the
 	else:
 		theme_attr = ''
 
-	# Real accent colour pulled from the GTK theme (not hard-coded); the
-	# dark-mode accent is a plain RGB invert of it, per user preference.
+# Real accent colour pulled from the GTK theme (not hard-coded); the
+# dark-mode accent is a plain RGB invert of it, per user preference.
 	accent_light = accent or detect_accent_color()
 	accent_dark = invert_hex_color(accent_light)
 	accent_contrast_light = contrasting_text_color(accent_light)
@@ -1792,15 +1790,15 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 	_theme_pref = {'value': load_theme_pref()}   # 'auto' | 'dark' | 'light', persisted to disk
 	_bt_enabled = {'value': load_bluetooth_pref()}  # bool, persisted to disk (default off)
 
-	# Continuous BT discovery state — one persistent bluetoothctl session
-	# (started/stopped on demand, see _start_bt_reader/_stop_bt_reader),
-	# fed by _bt_reader_loop(). The main _scan_loop() below just reads a
-	# snapshot of this dict every `interval` tick; it never starts/stops
-	# the scan itself. `interval` is the SINGLE source of truth for both
-	# WiFi scan cadence and the BT UI refresh cadence — no separate BT
-	# interval anywhere. When Bluetooth scanning is disabled in Settings,
-	# no rfkill check runs, no bluetoothctl session is started, and no BT
-	# data is pushed to the WebView at all.
+# Continuous BT discovery state — one persistent bluetoothctl session
+# (started/stopped on demand, see _start_bt_reader/_stop_bt_reader),
+# fed by _bt_reader_loop(). The main _scan_loop() below just reads a
+# snapshot of this dict every `interval` tick; it never starts/stops
+# the scan itself. `interval` is the SINGLE source of truth for both
+# WiFi scan cadence and the BT UI refresh cadence — no separate BT
+# interval anywhere. When Bluetooth scanning is disabled in Settings,
+# no rfkill check runs, no bluetoothctl session is started, and no BT
+# data is pushed to the WebView at all.
 	_bt_devices = {}
 	_bt_lock = threading.Lock()
 	_bt_reader = {'thread': None, 'stop': threading.Event()}
@@ -1827,29 +1825,30 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 		with _bt_lock:
 			_bt_devices.clear()
 
-	# Cumulative WiFi state — keyed by BSSID. Each scan merges into this
-	# dictionary instead of replacing the previous scan result.
+# Cumulative WiFi state — keyed by BSSID
 	_wifi_networks = {}
 
-	# ------------------------------------------------------------------ #
-	# Background scan loop – runs in a daemon thread. Drives BOTH the    #
-	# WiFi scan AND the periodic Bluetooth UI refresh, on one interval.  #
-	# ------------------------------------------------------------------ #
+# ----------------------------------------------------------------------
+# Background scan loop – runs in a daemon thread. Drives BOTH the
+# WiFi scan AND the periodic Bluetooth UI refresh, on one interval.
+# ----------------------------------------------------------------------
 	def _scan_loop():
 		first = True
 		while not _stop_flag.is_set():
 			if not first:
-				_stop_flag.wait(interval)      # single interval for WiFi scan + BT UI refresh
+# single interval for WiFi scan + BT UI refresh
+				_stop_flag.wait(interval)
 			if _stop_flag.is_set():
 				break
 			if first:
-				time.sleep(0.8)                # give WebKit time to load the HTML
+# give WebKit time to load the HTML
+				time.sleep(1)
 			first = False
 
-			# -------------------------------------------------------- #
-			# WiFi — passive pre-flight checks: never act automatically, #
-			# just surface state via the GTK banner and skip the scan. #
-			# -------------------------------------------------------- #
+# ----------------------------------------------------------------------
+# WiFi — passive pre-flight checks: never act automatically,
+# just surface state via the GTK banner and skip the scan.
+# ----------------------------------------------------------------------
 			rf = rfkill_status(interface)
 			if rf['hard']:
 				GLib.idle_add(_show_banner,
@@ -1882,14 +1881,14 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 				except Exception as e:
 					print(f'[!] Scan error: {e}')
 
-			# -------------------------------------------------------- #
-			# Bluetooth — same passive pre-flight pattern. The scan     #
-			# itself is already running continuously in the background #
-			# (_bt_reader_loop); this just pushes a snapshot of what's  #
-			# been collected so far into the UI. Skipped entirely when  #
-			# Bluetooth scanning is disabled: no rfkill check, no       #
-			# bluetoothctl, no data pushed to the WebView.              #
-			# -------------------------------------------------------- #
+# ----------------------------------------------------------------------
+# Bluetooth — same passive pre-flight pattern. The scan
+# itself is already running continuously in the background
+# (_bt_reader_loop); this just pushes a snapshot of what's
+# been collected so far into the UI. Skipped entirely when
+# Bluetooth scanning is disabled: no rfkill check, no
+# bluetoothctl, no data pushed to the WebView.
+# ----------------------------------------------------------------------
 			if not _bt_enabled['value']:
 				GLib.idle_add(_hide_bt_banner)
 				continue
@@ -1936,7 +1935,7 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 					GLib.idle_add(_hide_banner)
 				threading.Thread(target=_worker, daemon=True).start()
 
-			# disconnect any previous handler before reconnecting
+# disconnect any previous handler before reconnecting
 			if getattr(button, '_handler_id', None):
 				try:
 					button.disconnect(button._handler_id)
@@ -1997,7 +1996,7 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 	def _push_update(web, js: str):
 		"""Called on the GTK main loop (safe to call WebKit from here)."""
 		web.evaluate_javascript(js, -1, None, None, None, None, None)
-		return False   # remove from idle queue
+		return False
 
 	def _apply_theme(value: str):
 		"""Push the theme choice into the live WebView (main loop only)."""
@@ -2044,7 +2043,7 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 			box.append(pass_label)
 			pass_entry = Gtk.PasswordEntry()
 			pass_entry.set_show_peek_icon(True)
-			# placeholder via Gtk.Entry property on the inner entry
+# placeholder via Gtk.Entry property on the inner entry
 			pass_entry.set_property("placeholder-text", f"{security} password")
 			box.append(pass_entry)
 
@@ -2058,9 +2057,9 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 		action_area.set_margin_bottom(10)
 		action_area.set_spacing(10)
 
-		# GTK4: add box to dialog manually
-		dialog_box = dialog.get_child()   # Gtk.Box that wraps content+action area
-		content = dialog_box.get_first_child()  # first child is content area
+# GTK4: add box to dialog manually
+		dialog_box = dialog.get_child()
+		content = dialog_box.get_first_child()
 		content.append(box)
 
 		def on_response(d, response):
@@ -2082,7 +2081,6 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 
 	def _do_connect(ssid: str, bssid: str, security: str, password: str):
 		try:
-#			con_id = f'wifi-{ssid}-{bssid[-5:].replace(":","")}'
 			con_id = f'Auto {ssid}'
 
 			if security == 'open':
@@ -2120,10 +2118,10 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 					'connection.id', con_id,
 				]
 
-			# Append user-customized nmcli properties (settings dialog).
-			# Lines are "property value" pairs; later values override
-			# earlier ones with the same property since nmcli takes the
-			# last occurrence, so user overrides win over the defaults above.
+# Append user-customized nmcli properties (settings dialog).
+# Lines are "property value" pairs; later values override
+# earlier ones with the same property since nmcli takes the
+# last occurrence, so user overrides win over the defaults above.
 			for line in _nmcli_extra['text'].splitlines():
 				line = line.strip()
 				if not line or line.startswith('#'):
@@ -2158,7 +2156,7 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 		box.set_margin_start(20)
 		box.set_margin_end(0)
 
-		# ---- Dark mode selector ----
+# Dark mode selector
 		theme_label = Gtk.Label(label="Dark mode")
 		theme_label.set_halign(Gtk.Align.START)
 		box.append(theme_label)
@@ -2175,7 +2173,7 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 		separator0.set_margin_bottom(2)
 		box.append(separator0)
 
-		# ---- Bluetooth scan switch ----
+# Bluetooth scan switch
 		bt_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
 		bt_row.set_margin_top(6)
 		bt_label = Gtk.Label(label="Bluetooth scan")
@@ -2193,7 +2191,7 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 		separator.set_margin_bottom(2)
 		box.append(separator)
 
-		# ---- Custom nmcli parameters ----
+# Custom nmcli parameters
 		info = Gtk.Label(
 			label="Connection parameters (one nmcli parameter per line)\n"
 					"Example: ipv6.method disabled\n"
@@ -2256,22 +2254,22 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 		dialog.present()
 		return False
 
-	# ------------------------------------------------------------------ #
-	# GTK window                                                           #
-	# ------------------------------------------------------------------ #
+# ----------------------------------------------------------------------
+# GTK window
+# ----------------------------------------------------------------------
 	def activate(app):
 		win = Gtk.ApplicationWindow(application=app)
 		win.set_title("WiFi Spectrum Analyser")
 		win.set_default_size(1600, 900)
 
-		# UserContentManager – receives JS messages
+# UserContentManager – receives JS messages
 		ucm = WebKit.UserContentManager()
 		ucm.register_script_message_handler("connect")
 
 		def on_connect_msg(manager, js_result):
 			print('[DEBUG] on_connect_msg fired')
 			try:
-				# WebKit6: js_result is a JavascriptResult, value via different attrs
+# WebKit6: js_result is a JavascriptResult, value via different attrs
 				if hasattr(js_result, 'get_js_value'):
 					raw = js_result.get_js_value().to_string()
 				elif hasattr(js_result, 'js_value'):
@@ -2279,7 +2277,7 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 				elif hasattr(js_result, 'get_value'):
 					raw = js_result.get_value().to_string()
 				else:
-					# WebKit6 passes the value object directly as js_result
+# WebKit6 passes the value object directly as js_result
 					raw = js_result.to_string()
 				print(f'[DEBUG] raw: {raw}')
 				data = json.loads(raw)
@@ -2301,13 +2299,13 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 		web.connect("context-menu", lambda *_: True)
 		web.load_html(html, "file:///")
 
-		# ------------------------------------------------------------ #
-		# Status banners (rfkill / link-down) — purely passive: they   #
-		# only inform and offer an explicit action button, never act   #
-		# on their own. Live entirely in GTK, WebKit stays untouched.  #
-		# Two stacked rows: WiFi banner on top, Bluetooth banner below #
-		# it — both radios can be flagged independently at once.       #
-		# ------------------------------------------------------------ #
+# ----------------------------------------------------------------------
+# Status banners (rfkill / link-down) — purely passive: they
+# only inform and offer an explicit action button, never act
+# on their own. Live entirely in GTK, WebKit stays untouched.
+# Two stacked rows: WiFi banner on top, Bluetooth banner below
+# it — both radios can be flagged independently at once.
+# ----------------------------------------------------------------------
 		banner = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
 		if hasattr(banner, 'add_css_class'):
 			banner.add_css_class("infobar")
@@ -2359,10 +2357,8 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 		overlay.add_overlay(banner)
 		overlay.add_overlay(bt_banner)
 
-		# Small unobtrusive settings entry point — a tiny icon button
-		# living inside the same overlay as the banner, bottom-right
-		# corner. No HeaderBar, no CSD: the window keeps its normal
-		# system title bar, exactly as it was before.
+# Small unobtrusive settings entry point — a tiny icon button
+# living inside the same overlay as the banner, bottom-right corner.
 		settings_btn = Gtk.Button(label="☰")
 		settings_btn.set_valign(Gtk.Align.START)
 		settings_btn.set_halign(Gtk.Align.END)
@@ -2377,8 +2373,8 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 			_css.load_from_data(
 				b".scan-tool-square-btn { border-radius: 4px; min-width: 28px; min-height: 28px; padding: 2px; }"
 			)
-			settings_btn.get_style_context().add_provider(
-				_css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+			Gtk.StyleContext.add_provider_for_display(
+				settings_btn.get_display(), _css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
 			)
 		overlay.add_overlay(settings_btn)
 
@@ -2387,9 +2383,9 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 
 		_web_ref.append(web)
 
-		# React to the system theme changing at runtime while 'Automatic'
-		# is selected (covers switching a Cinnamon/GTK theme live, since
-		# WebKitGTK won't always pick this up on its own via CSS).
+# React to the system theme changing at runtime while 'Automatic'
+# is selected (covers switching a Cinnamon/GTK theme live, since
+# WebKitGTK won't always pick this up on its own via CSS).
 		def _on_system_theme_changed(*_a):
 			if _theme_pref['value'] == 'auto':
 				GLib.idle_add(_apply_theme, resolve_theme('auto'))
@@ -2402,12 +2398,12 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 		except Exception:
 			pass
 
-		# Start background threads.
-		# - _scan_loop: single periodic driver (interval) for BOTH the
-		#   WiFi scan AND the Bluetooth UI refresh.
-		# - _bt_reader_loop: runs continuously for the app's lifetime,
-		#   feeding _bt_devices with live bluetoothctl events. It does
-		#   NOT wait on `interval` — it just keeps reading.
+# Start background threads.
+# - _scan_loop: single periodic driver (interval) for BOTH the
+#   WiFi scan AND the Bluetooth UI refresh.
+# - _bt_reader_loop: runs continuously for the app's lifetime,
+#   feeding _bt_devices with live bluetoothctl events. It does
+#   NOT wait on `interval` — it just keeps reading.
 		t = threading.Thread(target=_scan_loop, daemon=True)
 		t.start()
 		if _bt_enabled['value']:
@@ -2422,9 +2418,9 @@ def show_gtk(html: str, interface: str, interval: int = 5):
 	app.connect("activate", activate)
 	app.run([])
 
-# ---------------------------------------------------------------------------
+# ----------------------------------------------------------------------
 # Main
-# ---------------------------------------------------------------------------
+# ----------------------------------------------------------------------
 
 def main():
 	parser = argparse.ArgumentParser(
@@ -2432,11 +2428,7 @@ def main():
 		formatter_class=argparse.RawDescriptionHelpFormatter
 	)
 	parser.add_argument('--interface', '-i', default='', help='Wireless interface (auto-detected if omitted)')
-	parser.add_argument('--interval', type=int, default=5,
-		help='Refresh interval in seconds — single source of truth for BOTH the WiFi scan cadence '
-			 'and the Bluetooth UI refresh cadence (default: 5). Bluetooth discovery itself runs '
-			 'continuously in the background regardless of this value; this only controls how often '
-			 'the UI is updated with what has been found so far.')
+	parser.add_argument('--interval', type=int, default=5, help='Refresh interval in seconds (default: 5)')
 	args = parser.parse_args()
 
 	iface = args.interface or detect_interface()
@@ -2452,7 +2444,7 @@ def main():
 	bt_enabled = load_bluetooth_pref()
 	print(f'[*] Bluetooth scan: {"on" if bt_enabled else "off"}')
 
-	# Build empty template — window opens immediately, scans run in background
+# Build empty template — window opens immediately, scans run in background
 	html = build_html([], iface, adapter_desc, theme, bt_devices=[], bt_enabled=bt_enabled)
 
 	show_gtk(html, iface, interval=args.interval)
